@@ -1,0 +1,15 @@
+  {
+    "version": "2.0",
+    "eventHub": {
+        "maxBatchSize": 16,
+        "prefetchCount": 32,
+        "batchCheckpointFrequency": 16
+    },
+    "logging": {
+      "fileLoggingMode": "always",
+      "logLevel": {
+        "Function": "Information",
+        "default": "Warning"
+      }
+  }
+}
