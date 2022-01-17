@@ -13,10 +13,8 @@ namespace hub
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            var urlWorkerApi = Environment.GetEnvironmentVariable("WORKER_API");
-
             builder.Services.AddSingleton<ITelemetryInitializer, CloudRoleName>();
-            builder.Services.AddSingleton<IWorkerApiProvider>(x=> new WorkerApiProvider(urlWorkerApi));
+            builder.Services.AddSingleton<IWorkerApiProvider, WorkerApiProvider>();
             builder.Services.AddLogging();
         }
     }

@@ -14,6 +14,11 @@ param storageConnectionString string
 @secure()
 param instrumentationKey string
 
+param storageAccountName string
+
+@secure()
+param storageAccountKey string
+
 resource law 'Microsoft.OperationalInsights/workspaces@2020-03-01-preview' = {
   name: 'capps-workspace'
   location: location
@@ -68,6 +73,10 @@ resource positionHandlerApp 'Microsoft.Web/containerApps@2021-03-01' = {
           name: 'instrumentation-key'
           value: instrumentationKey
         }
+        {
+          name: 'storage-account-key'
+          value: storageAccountKey
+        }
       ]      
       registries: [
         {
@@ -80,24 +89,12 @@ resource positionHandlerApp 'Microsoft.Web/containerApps@2021-03-01' = {
     template: {
       containers: [
         {
-          image: '${registry}/mc/capp-position-handler:1.0.0'
+          image: 'mconnect.azurecr.io/mc/capp-position-handler:1.0.0'
           name: 'position-handler-capp'
           env: [
           {
-            name: 'positionEventhubConnection'
-            secretRef: 'eventhub-connectionstring'
-          }
-          {
-            name: 'AzureWebJobsStorage'
-            secretRef: 'storage-connectionstring'
-          }
-          {
             name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
             secretRef: 'instrumentation-key'
-          }
-          {
-            name: 'WORKER_API'
-            value: workerApiApp.properties.configuration.ingress.fqdn
           }
           ]
         }
@@ -113,6 +110,8 @@ resource positionHandlerApp 'Microsoft.Web/containerApps@2021-03-01' = {
               metadata: {
                 eventHubName: 'hub-positions'
                 consumerGroup: 'capp-consumer-group'
+                checkpointStrategy: 'goSdk'
+                blobContainer: 'positionhandler'
               }
               auth: [
               {
@@ -125,6 +124,40 @@ resource positionHandlerApp 'Microsoft.Web/containerApps@2021-03-01' = {
               }
               ]
             }
+          }
+        ]
+      }
+      dapr: {
+        enabled: true
+        appId: 'position-handler-capp'
+        appPort: 3001
+        components: [
+          {
+            name: 'positionhandler'
+            type: 'bindings.azure.eventhubs'
+            version: 'v1'
+            metadata: [
+              {
+                name: 'connectionString'
+                secretRef: 'eventhub-connectionstring'
+              }
+              {
+                name: 'consumerGroup'
+                value: 'capp-consumer-group'
+              }
+              {
+                name: 'storageAccountName'
+                value: storageAccountName
+              }
+              {
+                name: 'storageAccountKey'
+                secretRef: 'storage-account-key'
+              }
+              {
+                name: 'storageContainerName'
+                value: 'positionhandler'
+              }
+            ]
           }
         ]
       }
@@ -176,6 +209,11 @@ resource workerApiApp 'Microsoft.Web/containerApps@2021-03-01' = {
       ]
       scale: {
         minReplicas: 0
+      }
+      dapr: {
+        enabled: true
+        appPort: 80
+        appId: 'worker-api-capp'
       }
     }
   }
